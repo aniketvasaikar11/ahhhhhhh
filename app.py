@@ -15,14 +15,14 @@ def fetch_data(ticker, start, end, interval):
     df = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
     if df.empty:
         raise ValueError("No data returned. Check ticker / date range / interval.")
-    df = df[['Open','High','Low','Close','Adj Close','Volume']].rename(columns={'Adj Close':'Adj_Close'})
+    df = df[['Open','High','Low','Close','Close','Volume']].rename(columns={'Close':'Close'})
     df.index = pd.to_datetime(df.index)
     return df
 
 def sma_signals(df, fast=20, slow=50):
     df = df.copy()
-    df['SMA_fast'] = df['Adj_Close'].rolling(fast).mean()
-    df['SMA_slow'] = df['Adj_Close'].rolling(slow).mean()
+    df['SMA_fast'] = df['Close'].rolling(fast).mean()
+    df['SMA_slow'] = df['Close'].rolling(slow).mean()
     df['signal'] = 0
     df.loc[df['SMA_fast'] > df['SMA_slow'], 'signal'] = 1
     df['signal'] = df['signal'].shift(1).fillna(0)  # act on next bar
@@ -30,7 +30,7 @@ def sma_signals(df, fast=20, slow=50):
 
 def momentum_signals(df, lookback=90, threshold=0.0):
     df = df.copy()
-    df['momentum'] = df['Adj_Close'].pct_change(periods=lookback)
+    df['momentum'] = df['Close'].pct_change(periods=lookback)
     df['signal'] = 0
     df.loc[df['momentum'] > threshold, 'signal'] = 1
     df['signal'] = df['signal'].shift(1).fillna(0)
@@ -44,14 +44,14 @@ def buy_and_hold_signals(df):
 
 def backtest(df, init_cap=100000, fee=0.0005, slippage=0.0):
     """
-    df: must contain 'Adj_Close' and 'signal' (1 = long, 0 = cash)
+    df: must contain 'Close' and 'signal' (1 = long, 0 = cash)
     fee: proportional fee on trade value (e.g., 0.0005 = 0.05%)
     slippage: proportional slippage applied to fill price
     """
-    df = df.copy().dropna(subset=['Adj_Close','signal'])
+    df = df.copy().dropna(subset=['Close','signal'])
     df['position'] = df['signal']  # fraction of portfolio in asset (0 or 1)
-    df['price_next'] = df['Adj_Close'].shift(-1)  # price at which we get filled on next bar
-    df['price_next'].fillna(df['Adj_Close'], inplace=True)
+    df['price_next'] = df['Close'].shift(-1)  # price at which we get filled on next bar
+    df['price_next'].fillna(df['Close'], inplace=True)
 
     cash = init_cap
     shares = 0.0
@@ -196,15 +196,15 @@ if run_bt:
     # Price + signals
     st.subheader("Price & signals")
     fig, ax = plt.subplots(figsize=(12,4))
-    ax.plot(df.index, df['Adj_Close'], label='Adj Close')
+    ax.plot(df.index, df['_Close'], label='Close')
     if 'SMA_fast' in df.columns:
         ax.plot(df.index, df['SMA_fast'], label='SMA fast', linestyle='--', alpha=0.8)
     if 'SMA_slow' in df.columns:
         ax.plot(df.index, df['SMA_slow'], label='SMA slow', linestyle='-.', alpha=0.8)
     buys = df[(df['signal'] == 1) & (df['signal'].shift(1) == 0)]
     sells = df[(df['signal'] == 0) & (df['signal'].shift(1) == 1)]
-    ax.scatter(buys.index, buys['Adj_Close'], marker='^', color='g', label='enter', zorder=3)
-    ax.scatter(sells.index, sells['Adj_Close'], marker='v', color='r', label='exit', zorder=3)
+    ax.scatter(buys.index, buys['Close'], marker='^', color='g', label='enter', zorder=3)
+    ax.scatter(sells.index, sells['Close'], marker='v', color='r', label='exit', zorder=3)
     ax.legend()
     ax.set_ylabel("Price")
     st.pyplot(fig)
@@ -237,3 +237,4 @@ if run_bt:
     st.download_button("Download trades CSV", csv_tr, file_name=f"{ticker}_trades.csv")
 
     st.success("Backtest finished. Use code as baseline to add more signals or a regime detector.")
+
