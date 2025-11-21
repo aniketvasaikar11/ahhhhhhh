@@ -15,7 +15,7 @@ def fetch_data(ticker, start, end, interval):
     df = yf.download(ticker, start=start, end=end, interval=interval, progress=False)
     if df.empty:
         raise ValueError("No data returned. Check ticker / date range / interval.")
-    df = df[['Open','High','Low','Close','Close','Volume']].rename(columns={'Close':'Close'})
+    df = df[['Open','High','Low','Close','Volume']]  # FIXED
     df.index = pd.to_datetime(df.index)
     return df
 
@@ -237,4 +237,5 @@ if run_bt:
     st.download_button("Download trades CSV", csv_tr, file_name=f"{ticker}_trades.csv")
 
     st.success("Backtest finished. Use code as baseline to add more signals or a regime detector.")
+
 
